@@ -14,6 +14,9 @@ import {
   Clock,
   CheckCircle,
   ExternalLink,
+  Upload,
+  Files,
+  Lock,
 } from 'lucide-react';
 import { VoiceName, TTSModel, DialogueLine, GenerationHistoryItem, ScriptPreset } from './types/tts';
 import { VOICES } from './data/voices';
@@ -27,19 +30,26 @@ import { StepByStepGuide } from './components/StepByStepGuide';
 import { CodeExportModal } from './components/CodeExportModal';
 import { VoiceCatalog } from './components/VoiceCatalog';
 import { GitHubExportModal } from './components/GitHubExportModal';
+import { CloudflareDeployModal } from './components/CloudflareDeployModal';
+import { SecuritySettingsModal } from './components/SecuritySettingsModal';
+import { MultiSegmentManager } from './components/MultiSegmentManager';
+import { VideoStudioPage } from './components/VideoStudio/VideoStudioPage';
 
 export default function App() {
   // Navigation
-  const [activeTab, setActiveTab] = useState<'studio' | 'guide' | 'voices'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'video' | 'guide' | 'voices'>('studio');
 
   // Studio Mode & Configuration
-  const [mode, setMode] = useState<'single' | 'multi'>('single');
+  const [mode, setMode] = useState<'single' | 'multi' | 'document'>('single');
   const [model, setModel] = useState<TTSModel>('gemini-3.8-flash-lite-tts');
   const [selectedVoice, setSelectedVoice] = useState<VoiceName>('Kore');
   const [speechStyle, setSpeechStyle] = useState('Clear, articulate studio narrator with warm cadence');
   const [scriptText, setScriptText] = useState(
     'Welcome to Google AI Studio. <breath> Creating professional voiceovers is now as simple as directing a voice actor. With Gemini 3.8 speech synthesis, you can direct tone, pacing, and human nuances with total precision.'
   );
+
+  // Security / Password
+  const [studioPassword, setStudioPassword] = useState<string>('');
 
   // Dual Speaker State
   const [speaker1, setSpeaker1] = useState<{ name: string; voice: VoiceName; style: string }>({
@@ -89,21 +99,36 @@ export default function App() {
   const [isScriptModalOpen, setIsScriptModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
+  const [isCloudflareModalOpen, setIsCloudflareModalOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   // Textarea Ref for cursor insertion
   const scriptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Load history from localStorage
+  // Load history & password from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('gemini_voiceover_history');
       if (saved) {
         setHistory(JSON.parse(saved));
       }
+      const savedPw = localStorage.getItem('studio_password');
+      if (savedPw) {
+        setStudioPassword(savedPw);
+      }
     } catch (e) {
-      console.warn('Failed to parse history from localStorage', e);
+      console.warn('Failed to parse storage item', e);
     }
   }, []);
+
+  const handleSavePassword = (pw: string) => {
+    setStudioPassword(pw);
+    if (pw) {
+      localStorage.setItem('studio_password', pw);
+    } else {
+      localStorage.removeItem('studio_password');
+    }
+  };
 
   const saveToHistory = (item: GenerationHistoryItem) => {
     setHistory((prev) => {
@@ -164,9 +189,12 @@ export default function App() {
     const line = targetVoice?.sampleText || 'Hello, I am testing the Gemini neural voice profile.';
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (studioPassword) headers['x-studio-password'] = studioPassword;
+
       const res = await fetch('/api/tts/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           mode: 'single',
           model: 'gemini-3.8-flash-lite-tts',
@@ -194,12 +222,15 @@ export default function App() {
     }
   };
 
-  // Main Generation Handler
+  // Main Generation Handler for Single or Dialogue
   const handleGenerateVoiceover = async () => {
     setIsGenerating(true);
     setGenerationError(null);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (studioPassword) headers['x-studio-password'] = studioPassword;
+
       const payload =
         mode === 'single'
           ? {
@@ -219,12 +250,15 @@ export default function App() {
 
       const res = await fetch('/api/tts/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          setIsSecurityModalOpen(true);
+        }
         throw new Error(data.error || 'Failed to synthesize voiceover with Gemini.');
       }
 
@@ -249,7 +283,6 @@ export default function App() {
 
       setCurrentAudio(audioResult);
 
-      // Save to local history
       saveToHistory({
         id: Math.random().toString(36).substring(2, 9),
         timestamp: Date.now(),
@@ -270,7 +303,7 @@ export default function App() {
     }
   };
 
-  // Word & Duration estimation
+  // Word & Duration estimation for Single / Dialogue
   const wordCount =
     mode === 'single'
       ? scriptText.split(/\s+/).filter(Boolean).length
@@ -285,6 +318,9 @@ export default function App() {
         onSelectTab={setActiveTab}
         onOpenCodeExport={() => setIsCodeModalOpen(true)}
         onOpenGitHubModal={() => setIsGitHubModalOpen(true)}
+        onOpenCloudflareModal={() => setIsCloudflareModalOpen(true)}
+        onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        isPasswordSet={Boolean(studioPassword)}
         onSelectPreset={handleSelectPreset}
       />
 
@@ -301,6 +337,7 @@ export default function App() {
               subtitle={currentAudio?.subtitle}
               voiceName={currentAudio?.voiceName}
               modelUsed={currentAudio?.modelUsed}
+              onCreateVideo={() => setActiveTab('video')}
             />
 
             {/* Error Notification */}
@@ -310,6 +347,14 @@ export default function App() {
                 <div className="flex-1">
                   <strong className="font-semibold block">Generation Error:</strong>
                   {generationError}
+                  {generationError.includes('Unauthorized') && (
+                    <button
+                      onClick={() => setIsSecurityModalOpen(true)}
+                      className="mt-2 px-3 py-1 bg-rose-500/20 text-rose-200 border border-rose-500/40 rounded-lg text-xs font-semibold hover:bg-rose-500/30 block"
+                    >
+                      Enter Studio Passcode
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -318,16 +363,16 @@ export default function App() {
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 lg:p-8 space-y-6 backdrop-blur-sm shadow-xl">
               {/* Studio Mode & Model Selector Bar */}
               <div className="flex flex-wrap items-center justify-between gap-4 pb-5 border-b border-slate-800">
-                {/* Single vs Dual Mode Switch */}
+                {/* 3 Modes: Single, Dual-Speaker, Document Narration */}
                 <div>
                   <label className="text-xs font-semibold text-slate-400 block mb-1.5 uppercase tracking-wider">
-                    Production Mode
+                    Production Workflow
                   </label>
-                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <div className="flex flex-wrap items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
                     <button
                       type="button"
                       onClick={() => setMode('single')}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                         mode === 'single'
                           ? 'bg-indigo-600 text-white shadow'
                           : 'text-slate-400 hover:text-white'
@@ -335,13 +380,14 @@ export default function App() {
                     >
                       Single Voiceover
                     </button>
+
                     <button
                       type="button"
                       onClick={() => {
                         setMode('multi');
                         setModel('gemini-3.8-flash-tts');
                       }}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                         mode === 'multi'
                           ? 'bg-indigo-600 text-white shadow'
                           : 'text-slate-400 hover:text-white'
@@ -349,6 +395,19 @@ export default function App() {
                     >
                       <Layers className="w-3.5 h-3.5" />
                       Dual-Speaker Screenplay
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMode('document')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        mode === 'document'
+                          ? 'bg-indigo-600 text-white shadow'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Files className="w-3.5 h-3.5 text-indigo-400" />
+                      Document Narration (TXT/DOCX/PDF)
                     </button>
                   </div>
                 </div>
@@ -380,10 +439,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mode 1: Single Speaker Configuration */}
-              {mode === 'single' ? (
+              {/* MODE 1: SINGLE SPEAKER */}
+              {mode === 'single' && (
                 <>
-                  {/* Voice Selector */}
                   <VoiceSelector
                     selectedVoice={selectedVoice}
                     onSelectVoice={setSelectedVoice}
@@ -495,8 +553,10 @@ export default function App() {
                     />
                   </div>
                 </>
-              ) : (
-                /* Mode 2: Dual Speaker Dialogue Editor */
+              )}
+
+              {/* MODE 2: DUAL SPEAKER SCREENPLAY */}
+              {mode === 'multi' && (
                 <DialogueEditor
                   dialogue={dialogue}
                   onChangeDialogue={setDialogue}
@@ -508,48 +568,93 @@ export default function App() {
                 />
               )}
 
-              {/* Generate Voiceover Button */}
-              <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  <span>Output: Unary 24kHz 16-Bit Mono WAV with RIFF header</span>
-                </div>
+              {/* MODE 3: MULTI-SEGMENT DOCUMENT NARRATION */}
+              {mode === 'document' && (
+                <div className="space-y-6">
+                  <VoiceSelector
+                    selectedVoice={selectedVoice}
+                    onSelectVoice={setSelectedVoice}
+                    onAuditionVoice={handleAuditionVoice}
+                    isAuditioning={isAuditioning}
+                  />
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (mode === 'single') {
-                        setScriptText(
-                          'Google AI Studio empowers creators to craft studio-grade voiceovers in seconds with Gemini.'
-                        );
-                      }
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+                      <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                      Narration Delivery Style (Applied across all document segments)
+                    </label>
+                    <input
+                      type="text"
+                      value={speechStyle}
+                      onChange={(e) => setSpeechStyle(e.target.value)}
+                      placeholder="e.g. Engaging documentary narrator, smooth and steady pacing"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none"
+                    />
+                  </div>
+
+                  <MultiSegmentManager
+                    selectedVoice={selectedVoice}
+                    model={model}
+                    speechStyle={speechStyle}
+                    studioPassword={studioPassword}
+                    onLoadAudioToPlayer={(base64, title, subtitle, voice) => {
+                      setCurrentAudio({
+                        base64,
+                        mimeType: 'audio/wav',
+                        title,
+                        subtitle,
+                        voiceName: voice,
+                        modelUsed: model,
+                      });
                     }}
-                    className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
-                  >
-                    Reset Text
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleGenerateVoiceover}
-                    disabled={isGenerating || (mode === 'single' && !scriptText.trim())}
-                    className="px-6 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-xl shadow-indigo-500/25 flex items-center gap-2.5 transition-all transform active:scale-95 disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Sparkles className="w-4 h-4 animate-spin text-white" />
-                        Generating Voiceover with Gemini...
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="w-4 h-4 text-white" />
-                        Generate Voiceover ({estimatedSeconds}s audio)
-                      </>
-                    )}
-                  </button>
+                  />
                 </div>
-              </div>
+              )}
+
+              {/* Action Bar for Single / Multi modes */}
+              {mode !== 'document' && (
+                <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span>Output: Unary 24kHz 16-Bit Mono WAV with RIFF header</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mode === 'single') {
+                          setScriptText(
+                            'Google AI Studio empowers creators to craft studio-grade voiceovers in seconds with Gemini.'
+                          );
+                        }
+                      }}
+                      className="px-3 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors"
+                    >
+                      Reset Text
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleGenerateVoiceover}
+                      disabled={isGenerating || (mode === 'single' && !scriptText.trim())}
+                      className="px-6 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-xl shadow-indigo-500/25 flex items-center gap-2.5 transition-all transform active:scale-95 disabled:opacity-50"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Sparkles className="w-4 h-4 animate-spin text-white" />
+                          Generating Voiceover with Gemini...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-4 h-4 text-white" />
+                          Generate Voiceover ({estimatedSeconds}s audio)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Recent Takes History */}
@@ -621,7 +726,15 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: STEP-BY-STEP HOW-TO GUIDE */}
+        {/* TAB: YOUTUBE ANIMATED VIDEO STUDIO (Market Gap Daily) */}
+        {activeTab === 'video' && (
+          <VideoStudioPage
+            currentVoiceoverAudioBase64={currentAudio?.base64}
+            currentVoiceoverTitle={currentAudio?.title}
+          />
+        )}
+
+        {/* TAB: STEP-BY-STEP HOW-TO GUIDE */}
         {activeTab === 'guide' && <StepByStepGuide />}
 
         {/* TAB 3: VOICE PERSONA CATALOG */}
@@ -647,10 +760,9 @@ export default function App() {
             setScriptText(script);
             setSpeechStyle(genre);
           } else {
-            // Parse lines starting with speaker
             const parsedLines: DialogueLine[] = [];
             const rawLines = script.split('\n').filter((l) => l.includes(':'));
-            rawLines.forEach((l, idx) => {
+            rawLines.forEach((l) => {
               const colonIdx = l.indexOf(':');
               const spk = l.substring(0, colonIdx).trim();
               const txt = l.substring(colonIdx + 1).trim();
@@ -668,7 +780,7 @@ export default function App() {
             }
           }
         }}
-        mode={mode}
+        mode={mode === 'multi' ? 'multi' : 'single'}
         speaker1Name={speaker1.name}
         speaker2Name={speaker2.name}
       />
@@ -681,7 +793,7 @@ export default function App() {
         model={model}
         script={scriptText}
         style={speechStyle}
-        mode={mode}
+        mode={mode === 'multi' ? 'multi' : 'single'}
         speaker1Name={speaker1.name}
         speaker1Voice={speaker1.voice}
         speaker2Name={speaker2.name}
@@ -694,13 +806,39 @@ export default function App() {
         onClose={() => setIsGitHubModalOpen(false)}
       />
 
+      {/* Cloudflare Pages Deploy Modal */}
+      <CloudflareDeployModal
+        isOpen={isCloudflareModalOpen}
+        onClose={() => setIsCloudflareModalOpen(false)}
+      />
+
+      {/* Security & Password Modal */}
+      <SecuritySettingsModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        studioPassword={studioPassword}
+        onSavePassword={handleSavePassword}
+      />
+
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950/60 py-6 mt-12 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            Powered by <strong>Google AI Studio</strong> & Gemini 3.8 Speech Models (<code>@google/genai</code>)
+            Powered by <strong>Google AI Studio</strong> & Gemini 3.8 Speech Models (<code>@google/genai</code>) · Cloudflare Edge Ready
           </p>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsCloudflareModalOpen(true)}
+              className="text-orange-400 hover:text-orange-300 font-semibold transition-colors"
+            >
+              Cloudflare Deploy
+            </button>
+            <button
+              onClick={() => setIsSecurityModalOpen(true)}
+              className="hover:text-slate-300 transition-colors"
+            >
+              Security Settings
+            </button>
             <button
               onClick={() => setActiveTab('guide')}
               className="hover:text-slate-300 transition-colors"
@@ -713,15 +851,6 @@ export default function App() {
             >
               Export API Code
             </button>
-            <a
-              href="https://aistudio.google.com"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-slate-300 transition-colors flex items-center gap-1"
-            >
-              Google AI Studio
-              <ExternalLink className="w-3 h-3" />
-            </a>
           </div>
         </div>
       </footer>

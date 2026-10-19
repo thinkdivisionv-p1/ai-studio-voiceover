@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Download, Sparkles, Music2, Share2, Check } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Download, Sparkles, Music2, Share2, Check, Film } from 'lucide-react';
 
 interface AudioPlayerProps {
   audioBase64: string | null;
@@ -9,6 +9,7 @@ interface AudioPlayerProps {
   voiceName?: string;
   modelUsed?: string;
   onDownload?: () => void;
+  onCreateVideo?: () => void;
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
@@ -18,6 +19,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   subtitle,
   voiceName,
   modelUsed,
+  onCreateVideo,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -250,7 +252,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onCreateVideo && (
+            <button
+              onClick={onCreateVideo}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Create high-retention YouTube video with this voiceover"
+            >
+              <Film className="w-3.5 h-3.5 text-cyan-400" />
+              Create YouTube Video
+            </button>
+          )}
+
           <button
             onClick={handleCopyAudioData}
             title="Copy Base64 Data URI"

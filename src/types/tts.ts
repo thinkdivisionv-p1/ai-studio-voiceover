@@ -21,10 +21,32 @@ export interface DialogueLine {
   style?: string;
 }
 
+export interface NarrationSegment {
+  id: string;
+  title: string;
+  text: string;
+  wordCount: number;
+  estimatedSeconds: number;
+  status: 'pending' | 'generating' | 'ready' | 'error';
+  audioBase64?: string;
+  mimeType?: string;
+  error?: string;
+}
+
+export interface DocumentNarrationSession {
+  fileName: string;
+  fileType: 'txt' | 'docx' | 'pdf';
+  fileSize: number;
+  totalWords: number;
+  totalCharacters: number;
+  segments: NarrationSegment[];
+  stitchedAudioBase64?: string;
+}
+
 export interface GenerationHistoryItem {
   id: string;
   timestamp: number;
-  mode: 'single' | 'multi';
+  mode: 'single' | 'multi' | 'document';
   model: TTSModel;
   title: string;
   script: string;

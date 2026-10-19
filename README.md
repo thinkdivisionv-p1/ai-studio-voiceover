@@ -1,110 +1,115 @@
-# AI Studio Voiceover Studio 🎙️
+# AI Studio Voiceover Studio & Video Producer 🎙️🎬
 
-A production-ready AI Voiceover and Screenplay synthesis web application powered by **Google AI Studio** and **Gemini 3.8 Speech Synthesis** models (`gemini-3.8-flash-lite-tts` and `gemini-3.8-flash-tts`).
+A production-ready AI Voiceover and High-Retention Animated YouTube Video Production suite powered by **Google AI Studio** and **Gemini 3.8 Speech Models** (`gemini-3.8-flash-lite-tts` and `gemini-3.8-flash-tts`).
 
-Craft studio-grade voiceovers, YouTube narration, cinematic documentary voice acting, and dual-speaker podcasts with natural breathing pauses, vocal bursts (`<laugh>`, `<gasp>`, `<sigh>`), and dialogue backchanneling (`|mhm|`, `|yeah|`).
-
----
-
-## ✨ Features
-
-- **⚡ Gemini 3.8 Speech Models**:
-  - `gemini-3.8-flash-lite-tts`: High-efficiency, crisp 24kHz audio for YouTube narration, explainers, and audiobooks.
-  - `gemini-3.8-flash-tts`: Flagship audio model with expressive voice design, vocal bursts, and dual-speaker screenplay direction.
-- **🎭 5 Prebuilt Studio Voice Personas**:
-  - **Kore**: Calm, warm, articulate, empathetic.
-  - **Puck**: Youthful, vibrant, energetic, playful.
-  - **Fenrir**: Deep, cinematic baritone, authoritative.
-  - **Zephyr**: Modern, conversational, relaxed, relatable.
-  - **Charon**: Solemn, reflective, grounded, commanding.
-- **🎬 Dual-Speaker Screenplay Directing**:
-  - Direct 2 distinct voice actors in a single script turn (e.g. Alex & Sam podcast).
-- **💥 Human Nuance & Vocal Burst Injection**:
-  - One-click insertion of `<breath>`, `<laugh>`, `<gasp>`, `<sigh>`, `<cough>`, `|mhm|`, `|yeah|`.
-- **✍️ Gemini AI Scriptwriter**:
-  - Integrated script generator powered by `gemini-3.8-flash` with target duration estimation.
-- **🎵 Waveform Audio Player**:
-  - Interactive scrubbing, variable speed (0.75x to 2.0x), volume control, and instant `.WAV` download.
-- **🔒 Enterprise Full-Stack Security**:
-  - Secure server-side proxy via Express. API keys are never exposed to the client bundle.
+Repository: `thinkdivisionv-p1/ai-studio-voiceover`
 
 ---
 
-## 🚀 Quickstart Guide
+## ⚡ What Makes This Studio Unique
 
-### 1. Prerequisites
-- [Node.js](https://nodejs.org/) v18.0.0 or higher
-- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/)
+### 1. 🎙️ Gemini 3.8 Speech Synthesis
+- **Single & Dual-Speaker**: Direct solo narrators or 2-actor dialogues with natural conversational backchanneling (`|mhm|`, `|yeah|`).
+- **Expressive Vocal Bursts**: Inject human breathing (`<breath>`), laughter (`<laugh>`), gasps (`<gasp>`), and sighs (`<sigh>`).
+- **5 Neural Voice Profiles**: Kore, Puck, Fenrir, Zephyr, and Charon.
 
-### 2. Clone or Push to Your GitHub
+### 2. 📄 Document-to-Speech (TXT / DOCX / PDF)
+- Drag and drop `.TXT`, `.DOCX` (Word), or `.PDF` files.
+- Automatically segments long scripts into logical ~160-word chunks.
+- **Lossless Master WAV Stitching**: Concatenates all segment clips into a single continuous 24kHz 16-bit mono WAV file with bit-perfect RIFF header reconstruction.
+
+### 3. 🎬 Market Gap Daily — High-Retention YouTube Video Engine
+- **1920 × 1080 (Full HD) @ 30 FPS MP4 / WebM**: Rendered dynamically using high-performance HTML5 Canvas and MediaRecorder.
+- **Visual Identity**: Dark charcoal/navy base (`#070B14`, `#0B1120`), Electric Cyan accent (`#00F0FF`), technical grid lines, and glowing energy pulses.
+- **Kinetic Typography & Animated Data Charts**: Growing bar charts, progressive line graphs, and counting metric counters.
+- **Infrastructure Flow Diagrams**: Visual pipelines showing engineering bottlenecks and solutions.
+- **Pacing Standard**: Enforces visual composition changes every 3–6s (no static slides > 6.0s).
+- **All 4 Deliverables**:
+  1. 1080p MP4 Video
+  2. Word-Accurate Synchronized `.SRT` Captions
+  3. 1280 × 720 PNG High-CTR Thumbnail
+  4. Automated Quality-Control (QC) Audit Report
+
+### 4. ☁️ Cloudflare Pages & Workers ($0 / Month)
+- Serverless edge functions in `/functions/api/...` for instant audio proxying without a separate Node.js server.
+- Automated CI/CD via GitHub Actions and Cloudflare Git Integration.
+- Optional `STUDIO_PASSWORD` authentication to protect your API quota.
+
+---
+
+## 🚀 How to Reflect & Deploy This on GitHub and Cloudflare
+
+### Step 1: Push Changes to Your GitHub Repository
+Run these commands in your project terminal:
+
 ```bash
-# Initialize git if starting fresh
-git init
+# 1. Add all files and commit
 git add .
-git commit -m "feat: initial commit of AI Studio Voiceover Studio"
+git commit -m "feat: complete voiceover studio with YouTube video generator and cloudflare pages deployment"
 
-# Add your GitHub remote
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/ai-studio-voiceover.git
+# 2. Push to your main branch
 git push -u origin main
 ```
 
-### 3. Install Dependencies
-```bash
-npm install
-```
-
-### 4. Configure Environment Variables
-Create a `.env` file in the project root:
-```bash
-cp .env.example .env
-```
-Open `.env` and add your Gemini API key:
-```env
-GEMINI_API_KEY="AIzaSy..."
-PORT=3000
-```
-> Get your free key instantly at [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-
-### 5. Run Locally
-```bash
-npm run dev
-```
-Open your browser at `http://localhost:3000`.
+*(If you get a push rejection due to remote changes on GitHub, run `git pull --rebase origin main && git push origin main`)*.
 
 ---
 
-## 📦 Production Build & Deployment
+### Step 2: Connect to Cloudflare Pages (Free, Zero Local Software)
 
-### Build
-```bash
-npm run build
-npm start
-```
+1. Open [dash.cloudflare.com](https://dash.cloudflare.com/) and navigate to **Workers & Pages** > **Create Application** > **Pages** > **Connect to Git**.
+2. Select your repository: **`thinkdivisionv-p1/ai-studio-voiceover`**.
+3. Confirm Build Settings:
+   - **Framework preset**: `Vite` (or `None`)
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+4. In **Environment Variables (Advanced)**, add:
+   - `GEMINI_API_KEY`: *(Your key from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey))*
+   - `STUDIO_PASSWORD`: *(Optional personal passcode to protect your public URL)*
+5. Click **Save and Deploy**.
 
-### Deploy to Hosting Platforms
-
-#### Deploy to Render / Railway / Fly.io / VPS:
-1. Connect your GitHub repository.
-2. Build Command: `npm run build`
-3. Start Command: `npm start`
-4. Set Environment Variable: `GEMINI_API_KEY = your_gemini_key`
-
-#### Deploy to Google Cloud Run:
-```bash
-gcloud run deploy ai-studio-voiceover \
-  --source . \
-  --set-env-vars GEMINI_API_KEY="YOUR_KEY" \
-  --allow-unauthenticated
-```
+Cloudflare will build the frontend, deploy the serverless edge functions (`/functions/api/...`), and give you a live production URL:
+`https://ai-studio-voiceover.pages.dev` with free SSL, global CDN, and automated deployments on every future commit!
 
 ---
 
-## 🛠️ Architecture
+## 📁 Repository Structure
 
-- **Frontend**: React 19, TypeScript, Vite 8, Tailwind CSS v4, Lucide Icons
-- **Backend**: Node.js, Express, `tsx` runtime, `@google/genai` SDK v2.4+
-- **Audio Output**: 24kHz 16-bit Mono WAV format with standard RIFF headers
+```
+├── functions/                     # Cloudflare Pages Edge Functions
+│   └── api/
+│       ├── tts/generate.ts        # Gemini 3.8 Speech Edge Worker
+│       ├── script/generate.ts     # Script Generation Worker
+│       ├── auth/verify.ts         # Security Auth Verification Worker
+│       └── health.ts              # Edge Health Check
+├── src/
+│   ├── components/
+│   │   ├── VideoStudio/           # YouTube Animated Video Production
+│   │   │   ├── CanvasVideoPlayer.tsx    # 1080p 30 FPS Player & HUD
+│   │   │   ├── SceneTableEditor.tsx     # Storyboard & Pacing Beat Editor
+│   │   │   ├── ThumbnailPreviewModal.tsx# 1280x720 PNG Thumbnail Studio
+│   │   │   ├── QCReportModal.tsx        # Retention & Static Duration QC
+│   │   │   ├── ExportVideoModal.tsx     # 1080p MP4 Video Encoder
+│   │   │   └── VideoStudioPage.tsx      # Main Video Production Suite
+│   │   ├── AudioPlayer.tsx        # 24kHz Waveform Audio Scrubber
+│   │   ├── MultiSegmentManager.tsx# TXT/DOCX/PDF Uploader & WAV Stitcher
+│   │   ├── DialogueEditor.tsx     # Dual-Speaker Screenplay Director
+│   │   ├── VoiceSelector.tsx      # Neural Voice Persona Cards & Audition
+│   │   └── SecuritySettingsModal.tsx # Passcode Protection
+│   ├── utils/
+│   │   ├── canvasSceneRenderer.ts # 1080p Kinetic & Diagram Renderer
+│   │   ├── thumbnailGenerator.ts  # 720p Thumbnail Renderer
+│   │   ├── srtGenerator.ts        # Word-Accurate SRT Captions
+│   │   ├── qcAuditor.ts           # 6s Static Limit & Retention Auditor
+│   │   ├── documentParser.ts      # Mammoth & PDF.js Text Extractor
+│   │   └── wavStitcher.ts         # Lossless RIFF PCM WAV Concatenation
+│   ├── App.tsx                    # Main Studio Orchestrator
+│   └── main.tsx
+├── .github/workflows/
+│   └── deploy-cloudflare.yml      # Automated GitHub Actions CI/CD
+├── wrangler.toml                  # Cloudflare Pages Configuration
+└── server.ts                      # Local Express Dev / Fallback Server
+```
 
 ---
 

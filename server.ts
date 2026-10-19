@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
+const STUDIO_PASSWORD = process.env.STUDIO_PASSWORD || process.env.VOICEOVER_ADMIN_KEY || '';
 
 app.use(express.json({ limit: '15mb' }));
 
@@ -25,8 +26,47 @@ const ai = new GoogleGenAI({
   },
 });
 
+// Security Middleware: Optional Studio Password protection
+function checkAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!STUDIO_PASSWORD) {
+    return next(); // Password protection disabled (open personal mode)
+  }
+
+  const providedKey =
+    req.headers['x-studio-password'] ||
+    req.headers['authorization']?.replace(/^Bearer\s+/i, '');
+
+  if (!providedKey || providedKey !== STUDIO_PASSWORD) {
+    return res.status(401).json({
+      error: 'Unauthorized: Studio password is required or incorrect.',
+      requiresAuth: true,
+    });
+  }
+
+  next();
+}
+
+// Auth verification endpoint
+app.post('/api/auth/verify', (req, res) => {
+  const isProtected = Boolean(STUDIO_PASSWORD);
+  if (!isProtected) {
+    return res.json({ protected: false, authorized: true });
+  }
+
+  const provided =
+    req.headers['x-studio-password'] ||
+    req.headers['authorization']?.replace(/^Bearer\s+/i, '') ||
+    req.body?.password;
+
+  if (provided === STUDIO_PASSWORD) {
+    return res.json({ protected: true, authorized: true });
+  }
+
+  return res.status(401).json({ protected: true, authorized: false });
+});
+
 // TTS Generation endpoint
-app.post('/api/tts/generate', async (req, res) => {
+app.post('/api/tts/generate', checkAuth, async (req, res) => {
   try {
     const {
       mode = 'single',
@@ -39,13 +79,23 @@ app.post('/api/tts/generate', async (req, res) => {
       speaker2 = { name: 'Sam', voice: 'Kore', style: '' },
     } = req.body;
 
+    // Validate model selection
+    const allowedModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'];
+    const selectedModel = allowedModels.includes(model) ? model : 'gemini-3.8-flash-lite-tts';
+
     if (mode === 'single') {
       if (!text || typeof text !== 'string' || !text.trim()) {
         return res.status(400).json({ error: 'Text prompt is required for single speaker generation.' });
       }
 
+      if (text.length > 25000) {
+        return res.status(400).json({
+          error: 'Text length exceeds 25,000 characters. Please use the Multi-Segment Document Narration feature.',
+        });
+      }
+
       const response = await ai.models.generateContent({
-        model: model || 'gemini-3.8-flash-lite-tts',
+        model: selectedModel,
         contents: [
           {
             role: 'user',
@@ -73,7 +123,7 @@ app.post('/api/tts/generate', async (req, res) => {
 
       if (!base64Audio) {
         return res.status(500).json({
-          error: 'The Gemini audio model did not return inline audio data. Please try adjusting your prompt or style.',
+          error: 'Gemini audio model did not return inline audio. Try adjusting the text or pacing.',
         });
       }
 
@@ -81,14 +131,13 @@ app.post('/api/tts/generate', async (req, res) => {
         success: true,
         mimeType: part?.inlineData?.mimeType || 'audio/wav',
         audioBase64: base64Audio,
-        modelUsed: model,
+        modelUsed: selectedModel,
         voiceUsed: voice,
       });
     } else {
-      // Multi-speaker / Dialogue mode
-      // Model must support dual speakers, typically gemini-3.8-flash-tts
+      // Dual-speaker / Dialogue mode
       if (!dialogue || !Array.isArray(dialogue) || dialogue.length === 0) {
-        return res.status(400).json({ error: 'Dialogue array is required for dual speaker generation.' });
+        return res.status(400).json({ error: 'Dialogue turns array is required for dual speaker mode.' });
       }
 
       const parts = dialogue.map((line: { speaker: string; text: string; style?: string }) => {
@@ -139,7 +188,7 @@ app.post('/api/tts/generate', async (req, res) => {
 
       if (!base64Audio) {
         return res.status(500).json({
-          error: 'The Gemini multi-speaker audio model did not return audio data. Ensure two speakers are defined.',
+          error: 'Multi-speaker model did not return audio data. Ensure two speakers are configured.',
         });
       }
 
@@ -159,12 +208,12 @@ app.post('/api/tts/generate', async (req, res) => {
   }
 });
 
-// AI Script Generation Endpoint using gemini-3.8-flash
-app.post('/api/script/generate', async (req, res) => {
+// AI Script Generation Endpoint
+app.post('/api/script/generate', checkAuth, async (req, res) => {
   try {
     const { topic, genre, targetSeconds = 30, mode = 'single', speaker1Name = 'Alex', speaker2Name = 'Sam' } = req.body;
 
-    const approxWordCount = Math.round((targetSeconds / 60) * 140); // ~140 words per minute speaking rate
+    const approxWordCount = Math.round((targetSeconds / 60) * 140);
 
     let prompt = '';
     if (mode === 'single') {
@@ -180,7 +229,7 @@ Important formatting guidelines for Gemini Voiceover:
    - <sigh> (for relief or wistfulness)
    - <laugh> (for amusement)
    - <gasp> (for astonishment)
-3. Return ONLY the raw spoken script without meta-commentary, markdown title headers, or actor instructions in brackets.`;
+3. Return ONLY the raw spoken script without meta-commentary or title headers.`;
     } else {
       prompt = `You are a scriptwriter for dual-speaker dialogues and podcasts.
 Create a natural, dynamic 2-person dialogue on the topic: "${topic || 'The Future of AI Voice Synthesis'}".
@@ -194,7 +243,7 @@ ${speaker1Name}: Hey everyone, welcome back.
 ${speaker2Name}: Glad to be here, |yeah| this is exciting!
 2. You can embed vocal bursts like <breath>, <laugh>, <gasp>, or backchannels like |mhm|, |yeah| naturally into the lines.
 3. Keep the banter lively, authentic, and fast-paced.
-4. Return ONLY the dialogue lines in format "Speaker: line". No intro, outro or stage notes.`;
+4. Return ONLY the dialogue lines in format "Speaker: line".`;
     }
 
     const response = await ai.models.generateContent({
@@ -216,7 +265,11 @@ ${speaker2Name}: Glad to be here, |yeah| this is exciting!
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'ai-studio-voiceover-api' });
+  res.json({
+    status: 'ok',
+    service: 'ai-studio-voiceover-api',
+    authProtected: Boolean(STUDIO_PASSWORD),
+  });
 });
 
 // Setup Vite middleware in dev or static files in production
