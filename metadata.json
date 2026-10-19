@@ -1,0 +1,6 @@
+{
+  "name": "AI Studio Voiceover Studio",
+  "description": "Create studio-quality voiceovers with Google AI Studio and Gemini 3.8 Speech models. Includes single and dual-speaker synthesis, expressive vocal tags, script generator, and interactive tutorial.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
